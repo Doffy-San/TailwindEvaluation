@@ -4,7 +4,7 @@ function UserCard({ user }) {
   if (!user) return null;
 
   return (
-    <div className="bg-gray-800 text-white p-4 rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300">
+    <div className="bg-gray-800 text-white rounded-lg shadow-lg hover:shadow-2xl transition-shadow duration-300">
       <img
         src={user.imageUrl}
         alt={`${user.firstName} ${user.lastName}`}

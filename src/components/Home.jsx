@@ -1,134 +1,127 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMagnifyingGlass, faList, faTable } from '@fortawesome/free-solid-svg-icons';
-import UserCard from './UserCard';
+import { faMagnifyingGlass, faThList, faTable } from '@fortawesome/free-solid-svg-icons';
+import TagInput from './TagInput';
 
-function Home() {
-  const [users, setUsers] = useState([]);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [view, setView] = useState('list'); // 'list' or 'table'
+const Home = () => {
+    const [users, setUsers] = useState([]);
+    const [viewMode, setViewMode] = useState('card');
+    const [tags, setTags] = useState([]);
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);  // Pour stocker le nombre total d'items
 
-  useEffect(() => {
-    fetchUsers(page, searchTerm);
-  }, [page, searchTerm]);
+    const fetchUsers = () => {
+        const terms = tags;
+        fetch(`http://localhost:3000/user/${page}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ terms }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (page === 1) {
+                    setUsers(data.data);
+                    setTotalCount(data.count);
+                } else {
+                    setUsers(prevUsers => [...prevUsers, ...data.data]);
+                }
+            })
+            .catch(error => console.error('Error fetching user list:', error));
+    };
 
-  const fetchUsers = async (page, searchTerm) => {
-    setLoading(true);
-    try {
-      const response = await fetch(`http://localhost:3000/user/${page}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ terms: searchTerm ? [searchTerm] : [] }),
-      });
-      const result = await response.json();
+    useEffect(() => {
+        fetchUsers();
+    }, [tags, page]);
 
-      console.log('Fetched data:', result); // Debugging
+    const loadMoreUsers = () => {
+        setPage(prevPage => prevPage + 1);
+    };
 
-      if (Array.isArray(result.data)) {
-        setUsers(prevUsers => {
-          const existingIds = new Set(prevUsers.map(user => user.id));
-          const newUsers = result.data.filter(user => !existingIds.has(user.id));
-          return [...prevUsers, ...newUsers];
-        });
-      } else {
-        console.error('Unexpected data format:', result);
-      }
-    } catch (error) {
-      console.error('Error fetching user list:', error);
-    }
-    setLoading(false);
-  };
+    const handleSearch = () => {
+      setPage(1); 
+      fetchUsers(); 
+    };
 
-  const handleSearch = () => {
-    setUsers([]); // Réinitialiser la liste des utilisateurs
-    setPage(1); // Réinitialiser la page à 1
-    fetchUsers(1, searchTerm); // Effectuer la recherche avec le terme
-  };
-
-  const handleViewChange = (view) => {
-    setView(view);
-  };
-
-  return (
-    <div className="container mx-auto p-4">
-      <div className="flex items-center mb-4 space-x-4">
-        <div className="relative flex-grow">
-          <input
-            type="text"
-            placeholder="Rechercher un utilisateur"
-            className="p-2 pr-10 border border-gray-300 rounded w-full"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-          <div className="absolute inset-y-0 right-0 flex items-center bg-blue-500 p-2 rounded-r-md">
-            <FontAwesomeIcon
-              icon={faMagnifyingGlass}
-              className="text-white cursor-pointer"
-              onClick={handleSearch}
-            />
-          </div>
-        </div>
-        <div className="flex space-x-2">
+    return (
+        <div className="container mx-auto p-4">
+            <div className="flex items-center space-x-2 mb-4">
+                <div className="flex flex-grow items-center border bg-white">
+                    <TagInput tags={tags} setTags={setTags} />
+                    <button
+                        className="bg-blue-500 text-white flex items-center"
+                        onClick={handleSearch}
+                    >
+                    <FontAwesomeIcon className="bg-blue-500 text-white rounded-r-md flex items-center" icon={faMagnifyingGlass} onClick={handleSearch} />
+                    </button>
+                </div>
+                <div className="flex space-x-0 ml-2">
           <button
-            onClick={() => handleViewChange('list')}
-            className={`p-2 rounded ${view === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}
+            onClick={() => setViewMode('card')}
+            className="bg-gray-500 text-white px-4 py-2 rounded-l-md border-r border-gray-600"
           >
-            <FontAwesomeIcon icon={faList} className="text-xl" />
+            <FontAwesomeIcon icon={faThList} />
           </button>
           <button
-            onClick={() => handleViewChange('table')}
-            className={`p-2 rounded ${view === 'table' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}
+            onClick={() => setViewMode('table')}
+            className="bg-gray-600 text-white px-4 py-2 rounded-r-md"
           >
-            <FontAwesomeIcon icon={faTable} className="text-xl" />
+            <FontAwesomeIcon icon={faTable} />
           </button>
         </div>
-      </div>
-
-      {view === 'list' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {users.map(user => (
-            <UserCard key={user.id} user={user} />
-          ))}
+            </div>
+            {viewMode === 'card' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {users.map(user => (
+                        <div
+                            key={user.id}
+                            className="bg-gray-800 text-white rounded-md flex flex-col items-center transition-transform transform hover:scale-105"
+                        >
+                            <img src={user.imageUrl} alt={`${user.firstName} ${user.lastName}`} className="rounded-md mb-2 w-full h-48 object-cover" />
+                            <h2 className="text-lg font-semibold">{`${user.firstName} ${user.lastName}`}</h2>
+                            <p>{user.jobTitle}</p>
+                            <p>{user.email}</p>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <table className="w-full text-white">
+                    <thead className="bg-gray-700">
+                        <tr>
+                            <th className="p-2">Image</th>
+                            <th className="p-2">Name</th>
+                            <th className="p-2">Job</th>
+                            <th className="p-2">Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map((user, index) => (
+                            <tr
+                                key={user.id}
+                                className={`hover:scale-105 ${index % 2 === 0 ? 'bg-gray-600' : 'bg-gray-500'}`}
+                            >
+                                <td className="p-2">
+                                    <img src={user.imageUrl} alt={`${user.firstName} ${user.lastName}`} className="w-16 h-16 object-cover rounded-md" />
+                                </td>
+                                <td className="p-2">{`${user.firstName} ${user.lastName}`}</td>
+                                <td className="p-2">{user.jobTitle}</td>
+                                <td className="p-2">{user.email}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+            <div className="text-white text-right mt-4">
+                {users.length}/{totalCount}
+            </div>
+            <div className="flex justify-center mt-4">
+                <button onClick={loadMoreUsers} className="bg-blue-500 text-white px-4 py-2 rounded-md">
+                    Load More
+                </button>
+            </div>
         </div>
-      ) : (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-transparent">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Image</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Job</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white">
-            {users.map((user, index) => (
-              <tr key={user.id} className={index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-600'}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-                  <img src={user.imageUrl} alt={user.firstName} className="w-12 h-12 rounded-full" />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{user.firstName} {user.lastName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{user.jobTitle}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{user.email}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {loading && <p>Loading...</p>}
-      <button
-        onClick={() => setPage(page + 1)}
-        disabled={loading}
-        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
-      >
-        Load more
-      </button>
-    </div>
-  );
-}
+    );
+};
 
 export default Home;
